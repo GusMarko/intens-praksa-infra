@@ -1,4 +1,3 @@
-# ECS Cluster
 resource "aws_ecs_cluster" "intens_praksa" {
   name = "intens-praksa-${var.env}-cluster"  
 
@@ -8,7 +7,6 @@ resource "aws_ecs_cluster" "intens_praksa" {
   }
 }
 
-# ECS Task Definition
 resource "aws_ecs_task_definition" "intens_praksa" {
   family                   = "intens-praksa${var.env}-task-def"
   requires_compatibilities = ["FARGATE"]
@@ -43,7 +41,6 @@ resource "aws_ecs_task_definition" "intens_praksa" {
 DEFINITION
 }
 
-# ECS Service
 resource "aws_ecs_service" "intens_praksa" {
   name            = "intens-praksa-${var.env}-service"
   cluster         = aws_ecs_cluster.intens_praksa.name
@@ -68,10 +65,9 @@ resource "aws_ecs_service" "intens_praksa" {
   }
 }
 
-# ALB
 resource "aws_lb" "main" {
   name               = "intens-praksa-${var.env}"
-  internal           = false # public ALB
+  internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
@@ -79,7 +75,6 @@ resource "aws_lb" "main" {
   enable_deletion_protection = false
 }
 
-# Target group
 resource "aws_lb_target_group" "main" {
   name        = "intens-praksa-${var.env}"
   port        = 8080
@@ -101,7 +96,6 @@ resource "aws_lb_target_group" "main" {
   }
 }
 
-# ALB Listeners
 resource "aws_alb_listener" "http" {
   load_balancer_arn = aws_lb.main.id
   port              = 80
@@ -130,7 +124,6 @@ resource "aws_alb_listener" "https" {
   }
 }
 
-# Security Groups ostaju isti, ali vpc_id koristi aws_vpc.main.id
 resource "aws_security_group" "alb" {
   name        = "intens-praksa-sg-alb"
   description = "alb"
@@ -176,4 +169,45 @@ resource "aws_security_group" "container" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+resource "aws_iam_role" "ecs_task_role" {
+  name = "intens-praksa-${var.env}-task-role"
+ 
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {"Service": "ecs-tasks.amazonaws.com"},
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name = "intens-praksa-${var.env}-execution-role"
+ 
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {"Service": "ecs-tasks.amazonaws.com"},
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attachment" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
