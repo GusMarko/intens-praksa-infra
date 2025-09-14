@@ -1,0 +1,8 @@
+env = "env_placeholder"
+aws_region = "aws_region_placeholder"
+access_key = "access_key_placeholder"
+secret_key = "secret_key_placeholder"
+priv_sub = "subnet-02948eff454566310"
+pub_sub = "subnet-0ad860532a3254199"
+vpc_id = "vpc-0a080bf3e983b9dfc"
+cert_arn = "arn:aws:acm:us-east-1:381492201388:certificate/48079eb7-635e-44a8-b6ec-0da56ce23d7b"
