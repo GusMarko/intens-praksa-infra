@@ -1,7 +1,7 @@
 import os
 import shutil
 
-REGION = os.environ.get("REGION")
+REGION = os.environ.get("AWS_REGION")
 ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY_ID")
 SECRET_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 
