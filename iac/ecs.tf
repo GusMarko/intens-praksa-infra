@@ -24,7 +24,7 @@ resource "aws_ecs_task_definition" "intens_praksa" {
     "portMappings": [
       {    
         "containerPort": 8080,
-        "hostPort": 8080,
+        "hostPort": 8080
       }
     ],
     "logConfiguration": {
