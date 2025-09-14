@@ -28,13 +28,13 @@ def replace_placeholders(env):
     backend_config = backend_config.replace("access_key_placeholder", str(ACCESS_KEY))
     backend_config = backend_config.replace("secret_key_placeholder", str(SECRET_KEY))
     backend_config = backend_config.replace("aws_region_placeholder", str(REGION))
-    backend_config = backend_config.replace("key_placeholder", f"project-s-environment/{env}/terraform.tfstate")
+    backend_config = backend_config.replace("key_placeholder", f"intens-praksa/{env}/terraform.tfstate")
     with open(backend_path, "w") as f:
         f.write(backend_config) 
 
 
 def get_environment():
-    curr_env = os.environ.get("GITHUB_BASE_REF", "")
+    curr_env = os.environ.get("GITHUB_REF", "")
     curr_env_parts = curr_env.split("/")
     curr_env = curr_env_parts[-1]
 
