@@ -1,3 +1,4 @@
+# ECS Cluster
 resource "aws_ecs_cluster" "intens_praksa" {
   name = "intens-praksa-${var.env}-cluster"  
 
@@ -7,14 +8,16 @@ resource "aws_ecs_cluster" "intens_praksa" {
   }
 }
 
+# ECS Task Definition
 resource "aws_ecs_task_definition" "intens_praksa" {
-  family = "intens-praksa${var.env}-task-def"
+  family                   = "intens-praksa${var.env}-task-def"
   requires_compatibilities = ["FARGATE"]
-  network_mode = "awsvpc"
-  cpu       = 1024
-  memory    = 6144
+  network_mode             = "awsvpc"
+  cpu                      = 1024
+  memory                   = 6144
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
+
   container_definitions = <<DEFINITION
 [
   {
@@ -40,6 +43,7 @@ resource "aws_ecs_task_definition" "intens_praksa" {
 DEFINITION
 }
 
+# ECS Service
 resource "aws_ecs_service" "intens_praksa" {
   name            = "intens-praksa-${var.env}-service"
   cluster         = aws_ecs_cluster.intens_praksa.name
@@ -48,29 +52,29 @@ resource "aws_ecs_service" "intens_praksa" {
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
   launch_type                        = "FARGATE"
-  scheduling_strategy                = "REPLICA"
-  depends_on      = [aws_alb_listener.http, aws_alb_listener.https]
+  scheduling_strategy                 = "REPLICA"
+  depends_on                          = [aws_alb_listener.http, aws_alb_listener.https]
 
   network_configuration {
-   security_groups  = [aws_security_group.container.id]
-   subnets          = [var.priv_sub]
-   assign_public_ip = false
+    security_groups  = [aws_security_group.container.id]
+    subnets          = [aws_subnet.private_a.id, aws_subnet.private_b.id]
+    assign_public_ip = false
   }
 
   load_balancer {
     target_group_arn = aws_lb_target_group.main.arn
-    container_name   = "intens-praksa-${var.env}"
+    container_name   = "intens-praksa-app"
     container_port   = 8080
   }
 }
 
-# Load balancer
+# ALB
 resource "aws_lb" "main" {
   name               = "intens-praksa-${var.env}"
-  internal           = true
+  internal           = false # public ALB
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = [var.pub_sub]
+  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
  
   enable_deletion_protection = false
 }
@@ -81,161 +85,95 @@ resource "aws_lb_target_group" "main" {
   port        = 8080
   protocol    = "HTTP"
   target_type = "ip"
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.main.id
+
   health_check {
-    unhealthy_threshold = 10
-    healthy_threshold   = 2   
-    timeout             = 5    
-    interval            = 30    
+    unhealthy_threshold = 3
+    healthy_threshold   = 2
+    timeout             = 5
+    interval            = 30
+    path                = "/"
   }
+
   lifecycle {
-      create_before_destroy = true
-      ignore_changes        = [name]
-    }
+    create_before_destroy = true
+    ignore_changes        = [name]
+  }
 }
 
+# ALB Listeners
 resource "aws_alb_listener" "http" {
   load_balancer_arn = aws_lb.main.id
   port              = 80
   protocol          = "HTTP"
  
   default_action {
-   type = "redirect"
- 
-   redirect {
-     port        = 443
-     protocol    = "HTTPS"
-     status_code = "HTTP_301"
-   }
+    type = "redirect"
+    redirect {
+      port        = 443
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
 }
- 
+
 resource "aws_alb_listener" "https" {
   load_balancer_arn = aws_lb.main.id
   port              = 443
   protocol          = "HTTPS"
- 
   ssl_policy        = "ELBSecurityPolicy-2016-08"
   certificate_arn   = var.cert_arn
- 
+
   default_action {
     target_group_arn = aws_lb_target_group.main.id
     type             = "forward"
   }
 }
 
-
-# ECS Role
-resource "aws_iam_role" "ecs_task_role" {
-  name = "intens-praksa-${var.env}-task-role"
- 
-  assume_role_policy = <<EOF
-{
- "Version": "2012-10-17",
- "Statement": [
-   {
-     "Action": "sts:AssumeRole",
-     "Principal": {
-       "Service": "ecs-tasks.amazonaws.com"
-     },
-     "Effect": "Allow",
-     "Sid": ""
-   }
- ]
-}
-EOF
-}
-
-resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "intens-praksa-${var.env}-execution-role"
- 
-  assume_role_policy = <<EOF
-{
- "Version": "2012-10-17",
- "Statement": [
-   {
-     "Action": "sts:AssumeRole",
-     "Principal": {
-       "Service": "ecs-tasks.amazonaws.com"
-     },
-     "Effect": "Allow",
-     "Sid": ""
-   }
- ]
-}
-EOF
-}
-
-resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attachment" {
-  role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-}
-
-
+# Security Groups ostaju isti, ali vpc_id koristi aws_vpc.main.id
 resource "aws_security_group" "alb" {
-  name = "intens-praksa-sg-alb"
+  name        = "intens-praksa-sg-alb"
   description = "alb"
-  vpc_id      = var.vpc_id
-
-  egress = [
-    {
-      from_port        = 0
-      to_port          = 0
-      protocol         = "-1"
-      cidr_blocks      = ["0.0.0.0/0"]
-      ipv6_cidr_blocks = ["::/0"]
-      prefix_list_ids = []
-      security_groups = []
-      description = "Security Group for deployment"
-      self = false
-    }
-  ]
+  vpc_id      = aws_vpc.main.id
 
   ingress {
-    from_port = 443
-    to_port = 443
-    protocol = "tcp"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-    description = ""
-    security_groups = []
   }
 
   ingress {
-    from_port = 80
-    to_port = 80
-    protocol = "tcp"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-    security_groups = []
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
-
-
 
 resource "aws_security_group" "container" {
-  name = "intens-praksa-${var.env}"
+  name        = "intens-praksa-${var.env}"
   description = "container"
-  vpc_id      = var.vpc_id
-
-  egress = [
-    {
-      from_port        = 0
-      to_port          = 0
-      protocol         = "-1"
-      cidr_blocks      = ["0.0.0.0/0"]
-      ipv6_cidr_blocks = ["::/0"]
-      prefix_list_ids = []
-      security_groups = []
-      description = "Security Group for deployment"
-      self = false
-    }
-  ]
+  vpc_id      = aws_vpc.main.id
 
   ingress {
-    from_port = 8080
-    to_port = 8080
-    protocol = "tcp"
-    cidr_blocks = []
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
     security_groups = [aws_security_group.alb.id]
   }
 
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }

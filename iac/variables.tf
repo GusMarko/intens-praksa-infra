@@ -18,18 +18,41 @@ variable "secret_key" {
   description = "AWS credentials"
 }
 
-variable "priv_sub" {
-  type = string
-}
-
-variable "pub_sub" {
-  type = string
-}
-
-variable "vpc_id" {
-  type = string
-}
-
 variable "cert_arn" {
   type= string
+}
+
+variable "vpc_cidr_block" {
+  description = "CIDR range for the VPC"
+  type        = string
+}
+
+variable "pub_subnet_a_cidr" {
+  description = "CIDR for public subnet A"
+  type        = string
+}
+
+variable "pub_subnet_b_cidr" {
+  description = "CIDR for public subnet B"
+  type        = string
+}
+
+variable "priv_subnet_a_cidr" {
+  description = "CIDR for private subnet A"
+  type        = string
+}
+
+variable "priv_subnet_b_cidr" {
+  description = "CIDR for private subnet B"
+  type        = string
+}
+
+variable "az_a" {
+  description = "Availability Zone A"
+  type        = string
+}
+
+variable "az_b" {
+  description = "Availability Zone B"
+  type        = string
 }
