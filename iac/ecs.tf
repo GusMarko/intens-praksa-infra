@@ -253,3 +253,20 @@ resource "aws_iam_role_policy_attachment" "ecs_exec_role_cw_attach" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = aws_iam_policy.cw_full_access_exec_role.arn
 }
+
+data "aws_route53_zone" "main" {
+  name         = "gusmarko.com"
+  private_zone = false
+}
+
+resource "aws_route53_record" "alb" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = "intens-praksa.gusmarko.com"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.main.dns_name
+    zone_id                = aws_lb.main.zone_id
+    evaluate_target_health = true
+  }
+}
