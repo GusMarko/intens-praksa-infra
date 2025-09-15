@@ -207,7 +207,49 @@ resource "aws_iam_role" "ecs_task_execution_role" {
 EOF
 }
 
-resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attachment" {
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy_attachment" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_policy" "cw_full_access_task_role" {
+  name        = "intens-praksa-ecs-task-role-cw-full-access-${var.env}"
+  description = "Full CloudWatch Logs access for ECS Task Role"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "logs:*"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_role_cw_attach" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = aws_iam_policy.cw_full_access_task_role.arn
+}
+
+resource "aws_iam_policy" "cw_full_access_exec_role" {
+  name        = "intens-praksa-ecs-exec-role-cw-full-access-${var.env}"
+  description = "Full CloudWatch Logs access for ECS Execution Role"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "logs:*"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_exec_role_cw_attach" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = aws_iam_policy.cw_full_access_exec_role.arn
 }
